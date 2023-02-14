@@ -14,16 +14,55 @@ impl Config {
             return Err("not enough arguments");
         }
 
+        let (args, flags) = Self::find_flags(args);
+        let ignore_case_flag = Self::parse_flags(flags)?;
+
         let query = args[1].clone();
         let file_path = args[2].clone();
 
-        let ignore_case = env::var("IGNORE_CASE").is_ok();
+        let ignore_case = env::var("IGNORE_CASE").map_or_else(
+            |_| ignore_case_flag,
+            |v| {
+                v.parse::<bool>().expect(&format!(
+                    "Invalid environmental variable value, expected <bool> got \"{v}\""
+                ))
+            },
+        );
 
         Ok(Config {
             query,
             file_path,
             ignore_case,
         })
+    }
+
+    fn find_flags(args: &[String]) -> (Vec<&String>, Vec<&String>) {
+        let mut flags = Vec::new();
+        let mut remaining_args = Vec::new();
+
+        for a in args {
+            if a.starts_with("--") {
+                flags.push(a);
+            } else {
+                remaining_args.push(a)
+            }
+        }
+
+        (remaining_args, flags)
+    }
+
+    fn parse_flags(flags: Vec<&String>) -> Result<bool, &'static str> {
+        let mut ignore_case_flag = false;
+
+        for flag in flags {
+            if flag == "--ignore_case" {
+                ignore_case_flag = true;
+            } else {
+                return Err("unknown flag");
+            }
+        }
+
+        Ok(ignore_case_flag)
     }
 }
 
